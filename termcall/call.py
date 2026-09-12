@@ -1,0 +1,105 @@
+# termcall/call.py
+"""CallSession: ties room membership, signaling, peer connections, and rendering
+together for `termcall room create`/`termcall room join` (design §6, §8, §9).
+"""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Awaitable, Callable
+
+import numpy as np
+
+from termcall.peers import PeerConnectionManager
+from termcall.rooms import Member
+from termcall.signaling import Signal, am_i_offerer, build_answer_payload, build_offer_payload
+
+SendSignal = Callable[[str, str, dict], Awaitable[None]]
+LeaveRoom = Callable[[], Awaitable[None]]
+
+
+class CallSession:
+    def __init__(
+        self,
+        *,
+        my_user_id: str,
+        my_member_id: int,
+        local_video_track,
+        local_audio_track,
+        camera_frame_source: Callable[[], np.ndarray],
+        send_signal: SendSignal,
+        leave_room: LeaveRoom,
+        target_width: int | None = None,
+        frame_interval: float = 1.0 / 20.0,
+    ) -> None:
+        self.my_user_id = my_user_id
+        self.my_member_id = my_member_id
+        self.local_video_track = local_video_track
+        self.local_audio_track = local_audio_track
+        self.camera_frame_source = camera_frame_source
+        self.send_signal = send_signal
+        self.leave_room = leave_room
+        self.target_width = target_width
+        self.frame_interval = frame_interval
+
+        self.roster: dict[str, Member] = {}
+        self.video_tiles: dict[str, np.ndarray | None] = {}
+        self.video_disabled = False
+        self.failed_peers: set[str] = set()
+        self.fatal_error: str | None = None
+        self._shutdown = asyncio.Event()
+
+        self.peers = PeerConnectionManager(
+            on_video_frame=self._on_video_frame,
+            on_audio_frame=self._on_audio_frame,
+            on_state_change=self._on_state_change,
+        )
+
+    def _local_tracks(self) -> list:
+        return [self.local_video_track, self.local_audio_track]
+
+    def _on_video_frame(self, peer_id: str, frame: np.ndarray) -> None:
+        self.video_tiles[peer_id] = frame
+
+    def _on_audio_frame(self, peer_id: str, frame: np.ndarray) -> None:
+        pass  # wired to sounddevice output mixing in Task 22
+
+    def _on_state_change(self, peer_id: str, state: str) -> None:
+        """Design §10: a failed peer connection shows a persistent placeholder tile
+        if other connections remain up; if it was our only peer, the call ends with a
+        fatal, non-zero-exit error instead of silently hanging.
+        """
+        if state == "failed":
+            self.failed_peers.add(peer_id)
+            if len(self.roster) == 1:
+                self.fatal_error = (
+                    "Could not establish a direct connection with your peer "
+                    "(NAT traversal failed, no relay server configured)"
+                )
+                self._shutdown.set()
+        elif state == "connected":
+            self.failed_peers.discard(peer_id)
+
+    async def handle_member_joined(self, member: Member) -> None:
+        if member.user_id == self.my_user_id:
+            return
+        self.roster[member.user_id] = member
+        self.video_tiles.setdefault(member.user_id, None)
+        if am_i_offerer(self.my_member_id, member.id):
+            offer = await self.peers.create_offer(member.user_id, self._local_tracks())
+            await self.send_signal(member.user_id, "offer", build_offer_payload(offer.sdp))
+
+    async def handle_member_left(self, member: Member) -> None:
+        self.roster.pop(member.user_id, None)
+        self.video_tiles.pop(member.user_id, None)
+        self.failed_peers.discard(member.user_id)
+        await self.peers.close(member.user_id)
+
+    async def handle_signal(self, signal: Signal) -> None:
+        if signal.kind == "offer":
+            answer = await self.peers.accept_offer(signal.sender_id, signal.payload["sdp"], self._local_tracks())
+            await self.send_signal(signal.sender_id, "answer", build_answer_payload(answer.sdp))
+        elif signal.kind == "answer":
+            await self.peers.accept_answer(signal.sender_id, signal.payload["sdp"])
+        elif signal.kind == "ice":
+            await self.peers.add_ice_candidate(signal.sender_id, signal.payload)
