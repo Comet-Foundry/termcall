@@ -2,7 +2,8 @@
 
 import click
 
-from termcall import preview as preview_mod
+from termcall import auth, preview as preview_mod
+from termcall.supabase_client import SessionExpiredError
 
 
 @click.group()
@@ -33,6 +34,41 @@ def preview_cmd(device: int, fps: float, target_width: int | None, mirror: bool)
     Press q, Esc, or Ctrl-C to quit.
     """
     preview_mod.preview(device, fps, target_width, mirror)
+
+
+@cli.command("signup")
+@click.option("--email", prompt=True)
+@click.option("--password", prompt=True, hide_input=True, confirmation_prompt=True)
+def signup_cmd(email: str, password: str) -> None:
+    """Create a new termcall account."""
+    auth.signup(email, password)
+    click.echo("Account created. Run `termcall login` to sign in.")
+
+
+@cli.command("login")
+@click.option("--email", prompt=True)
+@click.option("--password", prompt=True, hide_input=True)
+def login_cmd(email: str, password: str) -> None:
+    """Sign in and persist a session in the OS keyring."""
+    session = auth.login(email, password)
+    click.echo(f"Logged in as {session.email}.")
+
+
+@cli.command("logout")
+def logout_cmd() -> None:
+    """Clear the locally stored session."""
+    auth.logout()
+    click.echo("Logged out.")
+
+
+@cli.command("whoami")
+def whoami_cmd() -> None:
+    """Print the logged-in email."""
+    try:
+        email = auth.whoami()
+    except SessionExpiredError:
+        raise click.ClickException("Session expired. Run `termcall login` again.") from None
+    click.echo(email)
 
 
 if __name__ == "__main__":
