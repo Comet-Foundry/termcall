@@ -50,7 +50,8 @@ def test_room_create_reports_camera_failure():
     with _patched_session(), \
          patch("termcall.rooms.create_room", new=AsyncMock(return_value=room)), \
          patch("main._resolve_user_id", new=AsyncMock(return_value="me")), \
-         patch("termcall.media.open_camera", side_effect=DeviceError("Could not open camera device 0.")):
+         patch("termcall.media.open_camera", side_effect=DeviceError("Could not open camera device 0.")), \
+         patch("termcall.rooms.leave_room", new=AsyncMock()):
         result = CliRunner().invoke(cli, ["room", "create"])
     assert result.exit_code != 0
     assert "Could not open camera device 0." in result.output
@@ -65,6 +66,9 @@ def test_room_create_exits_non_zero_when_call_session_reports_a_fatal_ice_failur
     fake_stream = MagicMock()
     fake_stream.__enter__ = MagicMock(return_value=fake_stream)
     fake_stream.__exit__ = MagicMock(return_value=False)
+    fake_speaker = MagicMock()
+    fake_speaker.__enter__ = MagicMock(return_value=fake_speaker)
+    fake_speaker.__exit__ = MagicMock(return_value=False)
     fake_session = MagicMock()
     fake_session.run = AsyncMock()
     fake_session.fatal_error = (
@@ -79,6 +83,7 @@ def test_room_create_exits_non_zero_when_call_session_reports_a_fatal_ice_failur
          patch("main._resolve_user_id", new=AsyncMock(return_value="me")), \
          patch("termcall.media.open_camera", return_value=fake_cap), \
          patch("termcall.media.open_microphone", return_value=fake_stream), \
+         patch("termcall.media.open_speaker", return_value=fake_speaker), \
          patch(
              "termcall.rooms.fetch_active_roster",
              new=AsyncMock(return_value=[Member(id=1, room_id="room-1", user_id="me", joined_at="t", left_at=None)]),

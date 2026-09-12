@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from collections.abc import Callable
 from fractions import Fraction
@@ -120,3 +121,45 @@ def open_microphone(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> sd
         )
     except sd.PortAudioError as err:
         raise DeviceError(f"Could not open the microphone: {err}") from err
+
+
+class AudioMixer:
+    """Thread-safe mixer for incoming per-peer PCM chunks: aiortc pushes frames from an
+    asyncio-driven task, sounddevice's OutputStream callback pulls from its own
+    PortAudio thread (playback side of design §7's bidirectional audio).
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._buffers: dict[str, list[np.ndarray]] = {}
+
+    def push(self, peer_id: str, chunk: np.ndarray) -> None:
+        with self._lock:
+            self._buffers.setdefault(peer_id, []).append(chunk)
+
+    def pull_mixed(self, frames: int) -> np.ndarray:
+        with self._lock:
+            mix = np.zeros(frames, dtype=np.int32)
+            for chunks in self._buffers.values():
+                if not chunks:
+                    continue
+                chunk = chunks.pop(0)
+                n = min(frames, chunk.shape[0])
+                mix[:n] += chunk[:n].astype(np.int32)
+            return np.clip(mix, -32768, 32767).astype(np.int16)
+
+
+def open_speaker(mixer: AudioMixer) -> sd.OutputStream:
+    def _callback(outdata, frames, _time_info, _status) -> None:
+        outdata[:, 0] = mixer.pull_mixed(frames)
+
+    try:
+        return sd.OutputStream(
+            samplerate=AUDIO_SAMPLE_RATE,
+            blocksize=AUDIO_SAMPLES_PER_FRAME,
+            channels=1,
+            dtype="int16",
+            callback=_callback,
+        )
+    except sd.PortAudioError as err:
+        raise DeviceError(f"Could not open the speaker: {err}") from err

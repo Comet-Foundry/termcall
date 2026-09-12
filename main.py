@@ -132,79 +132,78 @@ async def _room_join_async(code: str, device: int, target_width: int | None) -> 
 async def _run_call(client, room, my_user_id: str, device: int, target_width: int | None) -> None:
     try:
         cap = media.open_camera(device)
+        try:
+            loop = asyncio.get_event_loop()
+            mic_queue: asyncio.Queue = asyncio.Queue()
+            stream = media.open_microphone(mic_queue, loop)
+
+            with stream:
+                roster = await rooms.fetch_active_roster(client, room.id)
+                my_member = next(m for m in roster if m.user_id == my_user_id)
+
+                local_video = LocalVideoTrack(frame_source=lambda: cap.read()[1], fps=20.0)
+                local_audio = LocalAudioTrack(queue=mic_queue)
+
+                async def send_signal(recipient_id: str, kind: str, payload: dict) -> None:
+                    await signaling.insert_signal(
+                        client,
+                        room_id=room.id,
+                        sender_id=my_user_id,
+                        recipient_id=recipient_id,
+                        kind=kind,
+                        payload=payload,
+                    )
+
+                async def do_leave() -> None:
+                    await rooms.leave_room(client, room.id)
+
+                session = CallSession(
+                    my_user_id=my_user_id,
+                    my_member_id=my_member.id,
+                    local_video_track=local_video,
+                    local_audio_track=local_audio,
+                    camera_frame_source=lambda: cap.read()[1],
+                    send_signal=send_signal,
+                    leave_room=do_leave,
+                    target_width=target_width,
+                )
+
+                speaker = media.open_speaker(session.audio_mixer)
+                with speaker:
+                    for member in roster:
+                        if member.user_id != my_user_id:
+                            await session.handle_member_joined(member)
+
+                    members_channel = None
+                    signals_channel = None
+                    try:
+                        members_backlog, members_channel = await signaling.subscribe_room_members(
+                            client, room.id, session.handle_member_joined
+                        )
+                        signals_backlog, signals_channel = await signaling.subscribe_signals(
+                            client, room.id, my_user_id, session.handle_signal
+                        )
+                        for member in members_backlog:
+                            if member.user_id != my_user_id and member.user_id not in session.roster:
+                                await session.handle_member_joined(member)
+                        for signal in signals_backlog:
+                            await session.handle_signal(signal)
+
+                        await session.run()
+                    finally:
+                        if members_channel is not None:
+                            await members_channel.unsubscribe()
+                        if signals_channel is not None:
+                            await signals_channel.unsubscribe()
+
+                if session.fatal_error is not None:
+                    raise click.ClickException(session.fatal_error)
+        finally:
+            cap.release()
     except media.DeviceError as err:
         raise click.ClickException(str(err)) from None
-
-    try:
-        loop = asyncio.get_event_loop()
-        mic_queue: asyncio.Queue = asyncio.Queue()
-        try:
-            stream = media.open_microphone(mic_queue, loop)
-        except media.DeviceError as err:
-            raise click.ClickException(str(err)) from None
-
-        with stream:
-            roster = await rooms.fetch_active_roster(client, room.id)
-            my_member = next(m for m in roster if m.user_id == my_user_id)
-
-            local_video = LocalVideoTrack(frame_source=lambda: cap.read()[1], fps=20.0)
-            local_audio = LocalAudioTrack(queue=mic_queue)
-
-            async def send_signal(recipient_id: str, kind: str, payload: dict) -> None:
-                await signaling.insert_signal(
-                    client,
-                    room_id=room.id,
-                    sender_id=my_user_id,
-                    recipient_id=recipient_id,
-                    kind=kind,
-                    payload=payload,
-                )
-
-            async def do_leave() -> None:
-                await rooms.leave_room(client, room.id)
-
-            session = CallSession(
-                my_user_id=my_user_id,
-                my_member_id=my_member.id,
-                local_video_track=local_video,
-                local_audio_track=local_audio,
-                camera_frame_source=lambda: cap.read()[1],
-                send_signal=send_signal,
-                leave_room=do_leave,
-                target_width=target_width,
-            )
-
-            for member in roster:
-                if member.user_id != my_user_id:
-                    await session.handle_member_joined(member)
-
-            members_channel = None
-            signals_channel = None
-            try:
-                members_backlog, members_channel = await signaling.subscribe_room_members(
-                    client, room.id, session.handle_member_joined
-                )
-                signals_backlog, signals_channel = await signaling.subscribe_signals(
-                    client, room.id, my_user_id, session.handle_signal
-                )
-                for member in members_backlog:
-                    if member.user_id != my_user_id and member.user_id not in session.roster:
-                        await session.handle_member_joined(member)
-                for signal in signals_backlog:
-                    await session.handle_signal(signal)
-
-                await session.run()
-            finally:
-                if members_channel is not None:
-                    await members_channel.unsubscribe()
-                if signals_channel is not None:
-                    await signals_channel.unsubscribe()
-                await rooms.leave_room(client, room.id)
-
-            if session.fatal_error is not None:
-                raise click.ClickException(session.fatal_error)
     finally:
-        cap.release()
+        await rooms.leave_room(client, room.id)
 
 
 if __name__ == "__main__":

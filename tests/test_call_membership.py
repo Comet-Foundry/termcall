@@ -66,6 +66,8 @@ async def test_member_left_drops_roster_tile_and_closes_peer():
 
 async def test_handle_offer_signal_answers_and_sends_back():
     session = _session(my_member_id=5)
+    from termcall.rooms import Member
+    session.roster["peer-1"] = Member(id=2, room_id="r", user_id="peer-1", joined_at="t", left_at=None)
     session.peers = MagicMock()
     session.peers.accept_offer = AsyncMock(return_value=MagicMock(sdp="answer-sdp"))
 
@@ -82,6 +84,8 @@ async def test_handle_offer_signal_answers_and_sends_back():
 
 async def test_handle_answer_signal_completes_negotiation():
     session = _session(my_member_id=1)
+    from termcall.rooms import Member
+    session.roster["peer-1"] = Member(id=2, room_id="r", user_id="peer-1", joined_at="t", left_at=None)
     session.peers = MagicMock()
     session.peers.accept_answer = AsyncMock()
 
@@ -95,6 +99,8 @@ async def test_handle_answer_signal_completes_negotiation():
 
 async def test_handle_ice_signal_forwards_candidate():
     session = _session(my_member_id=1)
+    from termcall.rooms import Member
+    session.roster["peer-1"] = Member(id=2, room_id="r", user_id="peer-1", joined_at="t", left_at=None)
     session.peers = MagicMock()
     session.peers.add_ice_candidate = AsyncMock()
 
@@ -107,6 +113,20 @@ async def test_handle_ice_signal_forwards_candidate():
     await session.handle_signal(signal)
 
     session.peers.add_ice_candidate.assert_awaited_once_with("peer-1", signal.payload)
+
+
+async def test_handle_signal_ignores_sender_not_in_roster():
+    session = _session(my_member_id=1)
+    session.peers = MagicMock()
+    session.peers.accept_offer = AsyncMock()
+
+    from termcall.signaling import Signal
+
+    signal = Signal(id=1, room_id="r", sender_id="stranger", recipient_id="me", kind="offer", payload={"sdp": "x"})
+    await session.handle_signal(signal)
+
+    session.peers.accept_offer.assert_not_awaited()
+    session.send_signal.assert_not_awaited()
 
 
 async def test_state_change_to_failed_marks_peer_when_others_remain():

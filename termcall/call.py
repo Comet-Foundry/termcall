@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 
 from termcall.grid import compose_grid, grid_dimensions
+from termcall.media import AudioMixer
 from termcall.peers import PeerConnectionManager
 from termcall.render import CURSOR_HOME, QUIT_KEYS, frame_to_ansi, live_screen, output_size
 from termcall.rooms import Member
@@ -59,6 +60,7 @@ class CallSession:
             on_audio_frame=self._on_audio_frame,
             on_state_change=self._on_state_change,
         )
+        self.audio_mixer = AudioMixer()
 
     def _local_tracks(self) -> list:
         return [self.local_video_track, self.local_audio_track]
@@ -67,7 +69,7 @@ class CallSession:
         self.video_tiles[peer_id] = frame
 
     def _on_audio_frame(self, peer_id: str, frame: np.ndarray) -> None:
-        pass  # wired to sounddevice output mixing in Task 22
+        self.audio_mixer.push(peer_id, frame)
 
     def _on_state_change(self, peer_id: str, state: str) -> None:
         """Design §10: a failed peer connection shows a persistent placeholder tile
@@ -101,6 +103,8 @@ class CallSession:
         await self.peers.close(member.user_id)
 
     async def handle_signal(self, signal: Signal) -> None:
+        if signal.sender_id not in self.roster:
+            return  # ignore signals from users who are not active members of this room
         if signal.kind == "offer":
             answer = await self.peers.accept_offer(signal.sender_id, signal.payload["sdp"], self._local_tracks())
             await self.send_signal(signal.sender_id, "answer", build_answer_payload(answer.sdp))
