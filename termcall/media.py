@@ -1,0 +1,62 @@
+# termcall/media.py
+"""aiortc media tracks wrapping the local camera and microphone (design §7)."""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from collections.abc import Callable
+from fractions import Fraction
+
+import av
+import numpy as np
+from aiortc.mediastreams import MediaStreamError, VideoStreamTrack
+
+VIDEO_CLOCK_RATE = 90000
+VIDEO_TIME_BASE = Fraction(1, VIDEO_CLOCK_RATE)
+
+
+class DeviceError(Exception):
+    """Raised when the camera or microphone cannot be opened."""
+
+
+class LocalVideoTrack(VideoStreamTrack):
+    """Wraps a blocking frame-source callable (e.g. `cv2.VideoCapture.read`'s second
+    return value) as an aiortc VideoStreamTrack, running the blocking read in the
+    event loop's default executor and pacing frames at `fps`.
+    """
+
+    def __init__(self, frame_source: Callable[[], np.ndarray], fps: float) -> None:
+        super().__init__()
+        self._frame_source = frame_source
+        self._frame_interval = 1.0 / fps
+        self._start: float | None = None
+        self._frame_count = 0
+        self.enabled = True
+
+    async def _next_timestamp(self) -> tuple[int, Fraction]:
+        if self._start is None:
+            self._start = time.monotonic()
+        else:
+            self._frame_count += 1
+            target = self._start + self._frame_count * self._frame_interval
+            wait = target - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+        pts = int(self._frame_count * self._frame_interval * VIDEO_CLOCK_RATE)
+        return pts, VIDEO_TIME_BASE
+
+    async def recv(self) -> av.VideoFrame:
+        if self.readyState != "live":
+            raise MediaStreamError
+        loop = asyncio.get_event_loop()
+        bgr = await loop.run_in_executor(None, self._frame_source)
+        if self.enabled:
+            rgb = np.ascontiguousarray(bgr[:, :, ::-1])
+        else:
+            rgb = np.zeros_like(bgr)
+        frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
+        pts, time_base = await self._next_timestamp()
+        frame.pts = pts
+        frame.time_base = time_base
+        return frame
