@@ -10,7 +10,7 @@ from fractions import Fraction
 
 import av
 import numpy as np
-from aiortc.mediastreams import MediaStreamError, VideoStreamTrack
+from aiortc.mediastreams import AudioStreamTrack, MediaStreamError, VideoStreamTrack
 
 VIDEO_CLOCK_RATE = 90000
 VIDEO_TIME_BASE = Fraction(1, VIDEO_CLOCK_RATE)
@@ -59,4 +59,35 @@ class LocalVideoTrack(VideoStreamTrack):
         pts, time_base = await self._next_timestamp()
         frame.pts = pts
         frame.time_base = time_base
+        return frame
+
+
+AUDIO_SAMPLE_RATE = 48000
+AUDIO_SAMPLES_PER_FRAME = 960  # 20ms at 48kHz, matching WebRTC's default Opus framing
+AUDIO_TIME_BASE = Fraction(1, AUDIO_SAMPLE_RATE)
+
+
+class LocalAudioTrack(AudioStreamTrack):
+    """Wraps an asyncio.Queue of int16 mono PCM chunks (each AUDIO_SAMPLES_PER_FRAME
+    samples), fed by a sounddevice.InputStream callback via `open_microphone`, as an
+    aiortc AudioStreamTrack.
+    """
+
+    def __init__(self, queue: asyncio.Queue) -> None:
+        super().__init__()
+        self._queue = queue
+        self._samples_sent = 0
+        self.muted = False
+
+    async def recv(self) -> av.AudioFrame:
+        if self.readyState != "live":
+            raise MediaStreamError
+        chunk = await self._queue.get()
+        if self.muted:
+            chunk = np.zeros_like(chunk)
+        frame = av.AudioFrame.from_ndarray(chunk.reshape(1, -1), format="s16", layout="mono")
+        frame.sample_rate = AUDIO_SAMPLE_RATE
+        frame.pts = self._samples_sent
+        frame.time_base = AUDIO_TIME_BASE
+        self._samples_sent += chunk.shape[0]
         return frame
