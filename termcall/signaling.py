@@ -5,9 +5,13 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from supabase import AsyncClient
+
+from termcall.rooms import Member, parse_member
 
 
 @dataclass(frozen=True)
@@ -65,3 +69,51 @@ async def insert_signal(
             "payload": payload,
         }
     ).execute()
+
+
+async def subscribe_room_members(
+    client: AsyncClient, room_id: str, on_member: Callable[[Member], Awaitable[None]]
+):
+    """SELECT the current active roster, then subscribe to future INSERTs — a member
+    joining mid-call must see who's already there (design §6).
+    """
+    backlog_resp = (
+        await client.table("room_members").select("*").eq("room_id", room_id).is_("left_at", "null").execute()
+    )
+    backlog = [parse_member(row) for row in backlog_resp.data]
+
+    def _on_insert(payload: dict) -> None:
+        member = parse_member(payload["data"]["record"])
+        asyncio.ensure_future(on_member(member))
+
+    channel = client.channel(f"room_members:{room_id}")
+    channel.on_postgres_changes(
+        "INSERT", schema="public", table="room_members", filter=f"room_id=eq.{room_id}", callback=_on_insert
+    )
+    channel.subscribe()
+    return backlog, channel
+
+
+async def subscribe_signals(
+    client: AsyncClient, room_id: str, my_user_id: str, on_signal: Callable[[Signal], Awaitable[None]]
+):
+    """SELECT signals already addressed to me, then subscribe to future INSERTs."""
+    backlog_resp = (
+        await client.table("signals")
+        .select("*")
+        .eq("room_id", room_id)
+        .eq("recipient_id", my_user_id)
+        .execute()
+    )
+    backlog = [parse_signal(row) for row in backlog_resp.data]
+
+    def _on_insert(payload: dict) -> None:
+        signal = parse_signal(payload["data"]["record"])
+        asyncio.ensure_future(on_signal(signal))
+
+    channel = client.channel(f"signals:{my_user_id}")
+    channel.on_postgres_changes(
+        "INSERT", schema="public", table="signals", filter=f"recipient_id=eq.{my_user_id}", callback=_on_insert
+    )
+    channel.subscribe()
+    return backlog, channel
