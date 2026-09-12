@@ -6,11 +6,13 @@ together for `termcall room create`/`termcall room join` (design §6, §8, §9).
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Awaitable, Callable
 
 import numpy as np
 
 from termcall.peers import PeerConnectionManager
+from termcall.render import QUIT_KEYS
 from termcall.rooms import Member
 from termcall.signaling import Signal, am_i_offerer, build_answer_payload, build_offer_payload
 
@@ -103,3 +105,27 @@ class CallSession:
             await self.peers.accept_answer(signal.sender_id, signal.payload["sdp"])
         elif signal.kind == "ice":
             await self.peers.add_ice_candidate(signal.sender_id, signal.payload)
+
+    def handle_key(self, key: str) -> None:
+        if key in QUIT_KEYS:
+            asyncio.ensure_future(self._leave())
+        elif key == "m":
+            self.local_audio_track.muted = not self.local_audio_track.muted
+        elif key == "v":
+            self.video_disabled = not self.video_disabled
+            self.local_video_track.enabled = not self.video_disabled
+
+    async def _leave(self) -> None:
+        self._shutdown.set()
+        await self.peers.close_all()
+        await self.leave_room()
+
+    def install_keyboard_reader(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.add_reader(sys.stdin.fileno(), self._on_stdin_readable)
+
+    def remove_keyboard_reader(self, loop: asyncio.AbstractEventLoop) -> None:
+        loop.remove_reader(sys.stdin.fileno())
+
+    def _on_stdin_readable(self) -> None:
+        char = sys.stdin.read(1)
+        self.handle_key(char)
