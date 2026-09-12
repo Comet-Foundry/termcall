@@ -9,7 +9,9 @@ from collections.abc import Callable
 from fractions import Fraction
 
 import av
+import cv2
 import numpy as np
+import sounddevice as sd
 from aiortc.mediastreams import AudioStreamTrack, MediaStreamError, VideoStreamTrack
 
 VIDEO_CLOCK_RATE = 90000
@@ -91,3 +93,30 @@ class LocalAudioTrack(AudioStreamTrack):
         frame.time_base = AUDIO_TIME_BASE
         self._samples_sent += chunk.shape[0]
         return frame
+
+
+def open_camera(device: int) -> cv2.VideoCapture:
+    cap = cv2.VideoCapture(device)
+    if not cap.isOpened():
+        raise DeviceError(
+            f"Could not open camera device {device}. Check the device index and that "
+            "this terminal has camera permission."
+        )
+    return cap
+
+
+def open_microphone(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> sd.InputStream:
+    def _callback(indata, _frames, _time_info, _status) -> None:
+        chunk = indata[:, 0].copy()
+        loop.call_soon_threadsafe(queue.put_nowait, chunk)
+
+    try:
+        return sd.InputStream(
+            samplerate=AUDIO_SAMPLE_RATE,
+            blocksize=AUDIO_SAMPLES_PER_FRAME,
+            channels=1,
+            dtype="int16",
+            callback=_callback,
+        )
+    except sd.PortAudioError as err:
+        raise DeviceError(f"Could not open the microphone: {err}") from err
