@@ -7,12 +7,15 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import time
 from collections.abc import Awaitable, Callable
 
+import cv2
 import numpy as np
 
+from termcall.grid import compose_grid, grid_dimensions
 from termcall.peers import PeerConnectionManager
-from termcall.render import QUIT_KEYS
+from termcall.render import CURSOR_HOME, QUIT_KEYS, frame_to_ansi, live_screen, output_size
 from termcall.rooms import Member
 from termcall.signaling import Signal, am_i_offerer, build_answer_payload, build_offer_payload
 
@@ -129,3 +132,57 @@ class CallSession:
     def _on_stdin_readable(self) -> None:
         char = sys.stdin.read(1)
         self.handle_key(char)
+
+    def _ordered_tile_user_ids(self) -> list[str]:
+        peers_by_join_order = sorted(self.roster, key=lambda uid: self.roster[uid].id)
+        return ["__self__", *peers_by_join_order]
+
+    def compose_frame(self, self_frame: np.ndarray | None) -> str:
+        ordered = self._ordered_tile_user_ids()
+        cols, rows = grid_dimensions(len(ordered))
+        term_cols, term_rows = output_size(self.target_width)
+        tile_w = max(1, term_cols // cols)
+        tile_h = max(2, (term_rows // rows) * 2)
+
+        FAILED_TILE_RGB = (139, 0, 0)  # dark red: visually distinct from a black "no frame yet" tile
+        tiles = []
+        for user_id in ordered:
+            if user_id in self.failed_peers:
+                pixels = np.tile(np.array(FAILED_TILE_RGB, dtype=np.uint8), (tile_h, tile_w, 1))
+            else:
+                frame = self_frame if user_id == "__self__" else self.video_tiles.get(user_id)
+                if frame is None:
+                    pixels = np.zeros((tile_h, tile_w, 3), dtype=np.uint8)
+                else:
+                    pixels = cv2.resize(frame, (tile_w, tile_h), interpolation=cv2.INTER_AREA)
+                    if user_id == "__self__":
+                        pixels = cv2.cvtColor(pixels, cv2.COLOR_BGR2RGB)
+            tiles.append(frame_to_ansi(pixels))
+
+        blank_tile = frame_to_ansi(np.zeros((tile_h, tile_w, 3), dtype=np.uint8))
+        return compose_grid(tiles, cols, rows, blank_tile)
+
+    def _capture_self_frame(self) -> np.ndarray:
+        frame = self.camera_frame_source()
+        if self.video_disabled:
+            return np.zeros_like(frame)
+        return frame
+
+    async def render_loop(self) -> None:
+        loop = asyncio.get_event_loop()
+        with live_screen():
+            while not self._shutdown.is_set():
+                start = time.monotonic()
+                self_frame = await loop.run_in_executor(None, self._capture_self_frame)
+                sys.stdout.write(CURSOR_HOME + self.compose_frame(self_frame))
+                sys.stdout.flush()
+                elapsed = time.monotonic() - start
+                await asyncio.sleep(max(self.frame_interval - elapsed, 0.0))
+
+    async def run(self) -> None:
+        loop = asyncio.get_event_loop()
+        self.install_keyboard_reader(loop)
+        try:
+            await self.render_loop()
+        finally:
+            self.remove_keyboard_reader(loop)
