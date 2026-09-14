@@ -64,7 +64,7 @@
 **Interfaces:**
 - Produces: `BLOCK`, `RESET`, `HIDE_CURSOR`, `SHOW_CURSOR`, `ALT_SCREEN_ON`, `ALT_SCREEN_OFF`, `CURSOR_HOME`, `CLEAR_SCREEN`, `QUIT_KEYS` (constants); `frame_to_ansi(rgb: np.ndarray) -> str`; `terminal_size() -> tuple[int, int]`; `output_size(target_width: int | None) -> tuple[int, int]`; `raw_terminal()` (contextmanager); `quit_requested(timeout: float) -> bool`; `live_screen()` (contextmanager).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_render.py
@@ -106,12 +106,12 @@ def test_output_size_uses_target_width_when_given(monkeypatch):
     assert output_size(None) == (120, 40)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_render.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall'`
 
-- [ ] **Step 3: Create the package and move the rendering code**
+- [x] **Step 3: Create the package and move the rendering code**
 
 ```python
 # termcall/__init__.py
@@ -222,12 +222,12 @@ def live_screen():
         sys.stdout.flush()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_render.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/__init__.py termcall/render.py tests/test_render.py
@@ -247,7 +247,7 @@ git commit -m "feat: extract rendering primitives into termcall/render.py"
 - Consumes: `termcall.render.{frame_to_ansi, live_screen, output_size, quit_requested, raw_terminal, CURSOR_HOME}` (Task 1).
 - Produces: `termcall.preview.run(cap, fps, target_width, mirror) -> None`; `termcall.preview.preview(device, fps, target_width, mirror) -> None` (opens/releases the camera, raises `click.ClickException`/`click.BadParameter` on failure — used by `main.py`'s `preview` command). `main.py`'s `cli` group, callable as `python main.py <command>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_cli_preview.py
@@ -282,12 +282,12 @@ def test_preview_reports_unopenable_camera(mock_video_capture):
     assert "Could not open camera device 3" in result.output
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_cli_preview.py -v`
 Expected: FAIL with `ImportError: cannot import name 'cli' from 'main'`
 
-- [ ] **Step 3: Write `termcall/preview.py` and rewrite `main.py`**
+- [x] **Step 3: Write `termcall/preview.py` and rewrite `main.py`**
 
 ```python
 # termcall/preview.py
@@ -389,12 +389,12 @@ if __name__ == "__main__":
     cli()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_cli_preview.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/preview.py main.py tests/test_cli_preview.py
@@ -411,7 +411,7 @@ git commit -m "refactor: move preview loop to termcall/preview.py, main.py becom
 **Interfaces:**
 - Produces: `pytest`/`pytest-asyncio` available via `uv run pytest`; `asyncio_mode = "auto"` so `async def test_...` functions run without per-test decorators.
 
-- [ ] **Step 1: Edit `pyproject.toml`**
+- [x] **Step 1: Edit `pyproject.toml`**
 
 ```toml
 [project]
@@ -445,17 +445,17 @@ markers = [
 ]
 ```
 
-- [ ] **Step 2: Sync the environment**
+- [x] **Step 2: Sync the environment**
 
 Run: `uv sync`
 Expected: exits 0; `uv.lock` updates to include `supabase`, `aiortc`, `av`, `sounddevice`, `keyring`, `pytest`, `pytest-asyncio` and their transitive dependencies.
 
-- [ ] **Step 3: Verify existing tests still collect under the new pytest config**
+- [x] **Step 3: Verify existing tests still collect under the new pytest config**
 
 Run: `uv run pytest -v`
 Expected: PASS (the 7 tests from Tasks 1–2, no others exist yet)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add pyproject.toml uv.lock
@@ -472,7 +472,7 @@ git commit -m "build: add supabase/aiortc/av/sounddevice/keyring deps and pytest
 **Interfaces:**
 - Produces: tables `profiles`, `rooms`, `room_members`, `signals` and the `auth.users` provisioning trigger, exactly as specified in design §4/§4.1. Later tasks' RPCs and RLS policies depend on these table/column names verbatim.
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- supabase/migrations/0001_init_schema.sql
@@ -523,7 +523,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 ```
 
-- [ ] **Step 2: Apply it against a local instance and verify the shape**
+- [x] **Step 2: Apply it against a local instance and verify the shape**
 
 Run: `supabase start` (first time only), then `supabase db reset`
 Expected: migration applies with no errors; `supabase db reset` output includes `Applying migration 0001_init_schema.sql...` with no error lines.
@@ -531,7 +531,7 @@ Expected: migration applies with no errors; `supabase db reset` output includes 
 Run: `supabase db execute --query "select table_name from information_schema.tables where table_schema = 'public' order by 1;"` (or `psql` equivalent from `supabase status`'s DB URL)
 Expected: output includes `profiles`, `rooms`, `room_members`, `signals`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/0001_init_schema.sql
@@ -549,7 +549,7 @@ git commit -m "feat(db): add profiles/rooms/room_members/signals schema + user-p
 - Consumes: tables from Task 4.
 - Produces: `join_room(p_code text) returns rooms`, `leave_room(p_room_id uuid) returns void` — the exact RPC names/signatures `termcall/rooms.py` (Task 11) calls via `client.rpc(...)`.
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- supabase/migrations/0002_room_rpc.sql
@@ -597,7 +597,7 @@ end;
 $$;
 ```
 
-- [ ] **Step 2: Apply and smoke-test the cap and idempotency behavior directly in SQL**
+- [x] **Step 2: Apply and smoke-test the cap and idempotency behavior directly in SQL**
 
 Run: `supabase db reset`
 Expected: applies cleanly.
@@ -608,7 +608,7 @@ select proname from pg_proc where proname in ('join_room', 'leave_room');
 ```
 Expected: both function names present.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/0002_room_rpc.sql
@@ -626,7 +626,7 @@ git commit -m "feat(db): add join_room/leave_room security-definer RPCs with 4-c
 - Consumes: tables from Task 4.
 - Produces: row-level security enabled and policies in place per design §4.3; Task 7's integration suite is the behavioral proof.
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- supabase/migrations/0003_rls_policies.sql
@@ -679,12 +679,12 @@ create policy "signals insertable by sender or recipient"
   with check (auth.uid() in (sender_id, recipient_id));
 ```
 
-- [ ] **Step 2: Apply**
+- [x] **Step 2: Apply**
 
 Run: `supabase db reset`
 Expected: applies cleanly with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/0003_rls_policies.sql
@@ -703,7 +703,7 @@ git commit -m "feat(db): add RLS policies for profiles/rooms/room_members/signal
 - Consumes: a running local Supabase instance (`supabase start`), `SUPABASE_URL`/`SUPABASE_ANON_KEY` env vars pointing at it, and `supabase.create_client`.
 - Produces: automated proof of the four RLS/RPC guarantees called out in spec §12.
 
-- [ ] **Step 1: Write the integration test**
+- [x] **Step 1: Write the integration test**
 
 ```python
 # tests/integration/__init__.py
@@ -801,17 +801,17 @@ def test_room_members_visible_only_to_active_members_of_that_room(users):
     assert len(visible_to_outsider.data) == 0
 ```
 
-- [ ] **Step 2: Run test to verify it fails without a local instance (skip, not fail)**
+- [x] **Step 2: Run test to verify it fails without a local instance (skip, not fail)**
 
 Run: `uv run pytest tests/integration/test_rls.py -v`
 Expected: `SKIPPED (SUPABASE_URL not set...)`, exit code 0.
 
-- [ ] **Step 3: Start a local Supabase instance and run for real**
+- [x] **Step 3: Start a local Supabase instance and run for real**
 
 Run: `supabase start` then `export SUPABASE_URL=$(supabase status -o env | grep API_URL | cut -d= -f2) SUPABASE_ANON_KEY=$(supabase status -o env | grep ANON_KEY | cut -d= -f2)` then `uv run pytest tests/integration/test_rls.py -v -m integration`
 Expected: PASS (3 passed)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/integration/__init__.py tests/integration/test_rls.py
@@ -829,7 +829,7 @@ git commit -m "test: add RLS integration suite against local Supabase"
 **Interfaces:**
 - Produces: `Session(access_token: str, refresh_token: str, email: str)` (frozen dataclass); `save_session(session: Session) -> None`; `load_session() -> Session | None`; `clear_session() -> None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_session.py
@@ -859,12 +859,12 @@ def test_clear_session_swallows_missing_entry():
         clear_session()  # must not raise
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_session.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.session'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/session.py
@@ -909,12 +909,12 @@ def clear_session() -> None:
         pass
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_session.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/session.py tests/test_session.py
@@ -933,7 +933,7 @@ git commit -m "feat: add keyring-backed session storage"
 - Consumes: `termcall.session.{Session, load_session, save_session, clear_session}` (Task 8).
 - Produces: `SessionExpiredError(Exception)`; `build_sync_client() -> Client`; `async def build_async_client() -> AsyncClient`; `authenticated_sync_client() -> tuple[Client, Session]`; `async def authenticated_async_client() -> tuple[AsyncClient, Session]`. Both `authenticated_*` functions apply the Global Constraints refresh policy and are what every later authenticated command calls.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_supabase_client.py
@@ -1017,12 +1017,12 @@ async def test_authenticated_async_client_refreshes_and_persists(monkeypatch):
     assert saved["session"].access_token == "new-access"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_supabase_client.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.supabase_client'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/supabase_client.py
@@ -1110,12 +1110,12 @@ async def authenticated_async_client() -> tuple[AsyncClient, Session]:
     return client, refreshed
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_supabase_client.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/supabase_client.py tests/test_supabase_client.py
@@ -1135,7 +1135,7 @@ git commit -m "feat: add sync/async Supabase client builders with session refres
 - Consumes: `termcall.session.{Session, save_session, clear_session}` (Task 8), `termcall.supabase_client.{build_sync_client, authenticated_sync_client, SessionExpiredError}` (Task 9).
 - Produces: `signup(email: str, password: str) -> None`; `login(email: str, password: str) -> Session`; `logout() -> None`; `whoami() -> str`. `main.py` gains `signup`, `login`, `logout`, `whoami` commands.
 
-- [ ] **Step 1: Write the failing unit test**
+- [x] **Step 1: Write the failing unit test**
 
 ```python
 # tests/test_auth.py
@@ -1177,12 +1177,12 @@ def test_whoami_returns_stored_email():
         assert whoami() == "me@example.com"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_auth.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.auth'`
 
-- [ ] **Step 3: Write `termcall/auth.py`**
+- [x] **Step 3: Write `termcall/auth.py`**
 
 ```python
 # termcall/auth.py
@@ -1222,12 +1222,12 @@ def whoami() -> str:
     return session.email
 ```
 
-- [ ] **Step 4: Run unit test to verify it passes**
+- [x] **Step 4: Run unit test to verify it passes**
 
 Run: `uv run pytest tests/test_auth.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: Write the failing CLI test**
+- [x] **Step 5: Write the failing CLI test**
 
 ```python
 # tests/test_cli_auth.py
@@ -1269,12 +1269,12 @@ def test_logout_calls_auth_logout():
     mock_logout.assert_called_once()
 ```
 
-- [ ] **Step 6: Run CLI test to verify it fails**
+- [x] **Step 6: Run CLI test to verify it fails**
 
 Run: `uv run pytest tests/test_cli_auth.py -v`
 Expected: FAIL with `Error: No such command 'signup'.` (or similar) for each test
 
-- [ ] **Step 7: Wire the commands into `main.py`**
+- [x] **Step 7: Wire the commands into `main.py`**
 
 ```python
 # main.py — add near the top, alongside the existing `preview_mod` import
@@ -1317,12 +1317,12 @@ def whoami_cmd() -> None:
     click.echo(email)
 ```
 
-- [ ] **Step 8: Run CLI test to verify it passes**
+- [x] **Step 8: Run CLI test to verify it passes**
 
 Run: `uv run pytest tests/test_cli_auth.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add termcall/auth.py main.py tests/test_auth.py tests/test_cli_auth.py
@@ -1340,7 +1340,7 @@ git commit -m "feat: add signup/login/logout/whoami commands"
 **Interfaces:**
 - Produces: `Room(id, code, host_id, status)`, `Member(id, room_id, user_id, joined_at, left_at)` (frozen dataclasses); `RoomNotJoinableError(Exception)`, `RoomFullError(Exception)`; `generate_room_code(length=6) -> str`; `parse_room(row: dict) -> Room`; `parse_member(row: dict) -> Member`; `async def create_room(client, host_id) -> Room`; `async def join_room(client, code) -> Room`; `async def leave_room(client, room_id) -> None`; `async def fetch_active_roster(client, room_id) -> list[Member]`. `Member`/`parse_member` are consumed directly by `termcall/signaling.py` (Task 12/13).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_rooms.py
@@ -1438,12 +1438,12 @@ async def test_fetch_active_roster_parses_members_ordered_by_join():
     ]
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_rooms.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.rooms'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/rooms.py
@@ -1555,12 +1555,12 @@ async def fetch_active_roster(client: AsyncClient, room_id: str) -> list[Member]
     return [parse_member(row) for row in resp.data]
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_rooms.py -v`
 Expected: PASS (7 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/rooms.py tests/test_rooms.py
@@ -1578,7 +1578,7 @@ git commit -m "feat: add room lifecycle operations (create/join/leave/roster)"
 **Interfaces:**
 - Produces: `Signal(id, room_id, sender_id, recipient_id, kind, payload)` (frozen dataclass); `am_i_offerer(my_member_id: int, peer_member_id: int) -> bool`; `build_offer_payload(sdp) -> dict`; `build_answer_payload(sdp) -> dict`; `build_ice_payload(candidate, sdp_mid, sdp_mline_index) -> dict`; `parse_signal(row: dict) -> Signal`; `async def insert_signal(client, *, room_id, sender_id, recipient_id, kind, payload) -> None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_signaling.py
@@ -1650,12 +1650,12 @@ async def test_insert_signal_writes_expected_row():
     )
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_signaling.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.signaling'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/signaling.py
@@ -1727,12 +1727,12 @@ async def insert_signal(
     ).execute()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_signaling.py -v`
 Expected: PASS (8 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/signaling.py tests/test_signaling.py
@@ -1753,7 +1753,7 @@ git commit -m "feat: add signaling payload shaping and offerer/answerer determin
 
 **Implementation note for the executor:** the exact shape of `on_postgres_changes` callback payloads (e.g. whether the new row lives at `payload["data"]["record"]`) depends on the installed `realtime`/`supabase` package version. Verify it against the actually-installed version (`uv run python -c "import realtime; print(realtime.__version__)"` and check its source) the first time this code runs against a live local Supabase instance (Task 22's manual verification), and adjust `_on_insert`'s payload unpacking if it differs — the unit tests below pin our own assumed shape and will keep passing regardless since they control the fake channel's callback invocation.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_signaling_subscriptions.py
@@ -1834,12 +1834,12 @@ async def test_subscribe_signals_filters_backlog_by_recipient():
     assert backlog == [Signal(id=1, room_id="room-1", sender_id="u1", recipient_id="u2", kind="offer", payload={"sdp": "x"})]
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_signaling_subscriptions.py -v`
 Expected: FAIL with `ImportError: cannot import name 'subscribe_room_members'`
 
-- [ ] **Step 3: Add the subscription functions**
+- [x] **Step 3: Add the subscription functions**
 
 ```python
 # termcall/signaling.py — add imports and append these functions
@@ -1897,12 +1897,12 @@ async def subscribe_signals(
     return backlog, channel
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_signaling_subscriptions.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/signaling.py tests/test_signaling_subscriptions.py
@@ -1920,7 +1920,7 @@ git commit -m "feat: add backlog-then-stream Realtime subscriptions for room_mem
 **Interfaces:**
 - Produces: `grid_dimensions(n: int) -> tuple[int, int]`; `compose_grid(tiles: list[str], cols: int, rows: int, blank_tile: str) -> str`. Consumed by `termcall/call.py` (Task 21), which supplies pre-rendered ANSI tile strings (via `render.frame_to_ansi`) and a `blank_tile` of matching dimensions.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_grid.py
@@ -1958,12 +1958,12 @@ def test_compose_grid_rejects_empty_tiles():
         compose_grid([], cols=1, rows=1, blank_tile="X")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_grid.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.grid'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/grid.py
@@ -2004,12 +2004,12 @@ def compose_grid(tiles: list[str], cols: int, rows: int, blank_tile: str) -> str
     return "\n".join(grid_lines)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_grid.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/grid.py tests/test_grid.py
@@ -2027,7 +2027,7 @@ git commit -m "feat: add grid layout math and tile compositor"
 **Interfaces:**
 - Produces: `LocalVideoTrack(VideoStreamTrack)` — `__init__(self, frame_source: Callable[[], np.ndarray], fps: float)`, `async def recv(self) -> av.VideoFrame`, `self.enabled: bool` (default `True`; when `False`, `recv()` returns a black frame instead of a real one — spec §8's "stops sending frames without dropping any connection"). `frame_source` returns a BGR `(H, W, 3)` uint8 array (matching `cv2.VideoCapture.read()`'s second return value).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_media_video.py
@@ -2074,12 +2074,12 @@ async def test_recv_returns_black_frame_when_disabled():
     track.stop()
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_media_video.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.media'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/media.py
@@ -2144,12 +2144,12 @@ class LocalVideoTrack(VideoStreamTrack):
         return frame
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_media_video.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/media.py tests/test_media_video.py
@@ -2168,7 +2168,7 @@ git commit -m "feat: add LocalVideoTrack wrapping the camera capture loop"
 - Consumes: nothing new beyond stdlib/`av`.
 - Produces: `AUDIO_SAMPLE_RATE = 48000`, `AUDIO_SAMPLES_PER_FRAME = 960` (20ms); `LocalAudioTrack(AudioStreamTrack)` — `__init__(self, queue: asyncio.Queue)`, `async def recv(self) -> av.AudioFrame`, `self.muted: bool` (default `False`; when `True`, `recv()` still drains the queue but zeroes the samples, so pacing/track liveness is unaffected).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_media_audio.py
@@ -2218,12 +2218,12 @@ async def test_recv_zeroes_samples_when_muted():
     track.stop()
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_media_audio.py -v`
 Expected: FAIL with `ImportError: cannot import name 'LocalAudioTrack'`
 
-- [ ] **Step 3: Append the implementation**
+- [x] **Step 3: Append the implementation**
 
 ```python
 # termcall/media.py — add these imports at the top alongside the existing ones
@@ -2259,12 +2259,12 @@ class LocalAudioTrack(AudioStreamTrack):
         return frame
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_media_audio.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/media.py tests/test_media_audio.py
@@ -2282,7 +2282,7 @@ git commit -m "feat: add LocalAudioTrack wrapping queued microphone PCM chunks"
 **Interfaces:**
 - Produces: `open_camera(device: int) -> cv2.VideoCapture` (raises `DeviceError` if unopenable); `open_microphone(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> sounddevice.InputStream` (raises `DeviceError` on `sounddevice.PortAudioError`; returned stream is a context manager the caller `with`s). Both consumed by `main.py` (Task 22).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_media_devices.py
@@ -2334,12 +2334,12 @@ def test_open_microphone_callback_pushes_chunks_onto_queue_thread_safely():
     assert queue.qsize() == 1
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_media_devices.py -v`
 Expected: FAIL with `ImportError: cannot import name 'open_camera'`
 
-- [ ] **Step 3: Append the implementation**
+- [x] **Step 3: Append the implementation**
 
 ```python
 # termcall/media.py — add these imports at the top alongside the existing ones
@@ -2374,12 +2374,12 @@ def open_microphone(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> sd
         raise DeviceError(f"Could not open the microphone: {err}") from err
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_media_devices.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/media.py tests/test_media_devices.py
@@ -2397,7 +2397,7 @@ git commit -m "feat: add camera/microphone device opening"
 **Interfaces:**
 - Produces: `PeerConnectionManager` — `__init__(self, *, on_video_frame, on_audio_frame, on_state_change, ice_servers=None)`; `async def create_offer(self, peer_id, local_tracks) -> RTCSessionDescription`; `async def accept_offer(self, peer_id, offer_sdp, local_tracks) -> RTCSessionDescription`; `async def accept_answer(self, peer_id, answer_sdp) -> None`; `async def add_ice_candidate(self, peer_id, payload: dict) -> None`; `async def close(self, peer_id) -> None`; `async def close_all(self) -> None`. Callback signatures: `on_video_frame(peer_id: str, frame: np.ndarray)` (RGB), `on_audio_frame(peer_id: str, frame: np.ndarray)` (int16 mono), `on_state_change(peer_id: str, state: str)`.
 
-- [ ] **Step 1: Write the failing unit test**
+- [x] **Step 1: Write the failing unit test**
 
 ```python
 # tests/test_peers.py
@@ -2455,12 +2455,12 @@ async def test_close_all_closes_every_connection():
     assert manager._connections == {}
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_peers.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.peers'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/peers.py
@@ -2572,12 +2572,12 @@ class PeerConnectionManager:
         self._connections.clear()
 ```
 
-- [ ] **Step 4: Run unit test to verify it passes**
+- [x] **Step 4: Run unit test to verify it passes**
 
 Run: `uv run pytest tests/test_peers.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Write the real in-process integration test**
+- [x] **Step 5: Write the real in-process integration test**
 
 ```python
 # tests/test_peers_integration.py
@@ -2644,12 +2644,12 @@ async def test_two_peers_connect_and_exchange_video():
 
 `pytest-timeout` isn't in Task 3's dependency list — either add it (`uv add --group dev pytest-timeout`) or drop the `@pytest.mark.timeout(30)` decorator and rely on the bounded polling loops above, which already cap total wait at 20s. Prefer adding `pytest-timeout` since real ICE negotiation occasionally stalls and a hard kill is safer than a hung test run.
 
-- [ ] **Step 6: Run integration test to verify it passes**
+- [x] **Step 6: Run integration test to verify it passes**
 
 Run: `uv run pytest tests/test_peers_integration.py -v`
 Expected: PASS (1 passed) — takes a few seconds for real ICE negotiation.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add termcall/peers.py tests/test_peers.py tests/test_peers_integration.py pyproject.toml uv.lock
@@ -2668,7 +2668,7 @@ git commit -m "feat: add PeerConnectionManager with real two-peer integration te
 - Consumes: `termcall.rooms.Member` (Task 11), `termcall.signaling.{Signal, am_i_offerer, build_offer_payload, build_answer_payload}` (Task 12), `termcall.peers.PeerConnectionManager` (Task 18).
 - Produces: `CallSession.__init__(self, *, my_user_id, my_member_id, local_video_track, local_audio_track, camera_frame_source, send_signal, leave_room, target_width=None, frame_interval=1/20)`; `async def handle_member_joined(self, member: Member) -> None`; `async def handle_member_left(self, member: Member) -> None`; `async def handle_signal(self, signal: Signal) -> None`. Internal state (`self.roster: dict[str, Member]`, `self.video_tiles: dict[str, np.ndarray | None]`, `self.peers: PeerConnectionManager`, `self.failed_peers: set[str]`, `self.fatal_error: str | None`) is what Tasks 20–21 build on — do not rename these attributes. `self.fatal_error` implements design §10's "only peer connection failed" case: `main.py` (Task 22) checks it after `session.run()` returns and raises a non-zero-exit `click.ClickException` when set.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_call_membership.py
@@ -2817,12 +2817,12 @@ async def test_state_change_to_connected_clears_failed_marker():
     assert "peer-1" not in session.failed_peers
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_call_membership.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'termcall.call'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```python
 # termcall/call.py
@@ -2932,12 +2932,12 @@ class CallSession:
             await self.peers.add_ice_candidate(signal.sender_id, signal.payload)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_call_membership.py -v`
 Expected: PASS (10 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/call.py tests/test_call_membership.py
@@ -2956,7 +2956,7 @@ git commit -m "feat: add CallSession skeleton with membership-driven mesh format
 - Consumes: `termcall.render.QUIT_KEYS` (Task 1).
 - Produces: `def handle_key(self, key: str) -> None`; `async def _leave(self) -> None`; `def install_keyboard_reader(self, loop: asyncio.AbstractEventLoop) -> None`; `def remove_keyboard_reader(self, loop: asyncio.AbstractEventLoop) -> None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_call_keyboard.py
@@ -3024,12 +3024,12 @@ async def test_quit_key_schedules_leave():
     session.leave_room.assert_awaited_once()
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_call_keyboard.py -v`
 Expected: FAIL with `AttributeError: 'CallSession' object has no attribute 'handle_key'`
 
-- [ ] **Step 3: Append the implementation**
+- [x] **Step 3: Append the implementation**
 
 ```python
 # termcall/call.py — add these imports at the top
@@ -3063,12 +3063,12 @@ from termcall.render import QUIT_KEYS
         self.handle_key(char)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_call_keyboard.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/call.py tests/test_call_keyboard.py
@@ -3087,7 +3087,7 @@ git commit -m "feat: add in-call keyboard handling (leave/mute/video toggle)"
 - Consumes: `termcall.grid.{grid_dimensions, compose_grid}` (Task 14), `termcall.render.{frame_to_ansi, output_size, live_screen, CURSOR_HOME}` (Task 1).
 - Produces: `def compose_frame(self, self_frame: np.ndarray | None) -> str`; `async def render_loop(self) -> None`; `async def run(self) -> None` (installs the keyboard reader, runs the render loop until `self._shutdown` is set, then removes the reader — the top-level coroutine `main.py` awaits).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_call_render.py
@@ -3139,12 +3139,12 @@ def test_compose_frame_uses_black_tile_for_missing_peer_frame():
     assert isinstance(frame, str)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_call_render.py -v`
 Expected: FAIL with `AttributeError: 'CallSession' object has no attribute 'compose_frame'`
 
-- [ ] **Step 3: Append the implementation**
+- [x] **Step 3: Append the implementation**
 
 ```python
 # termcall/call.py — add these imports at the top
@@ -3210,12 +3210,12 @@ from termcall.render import CURSOR_HOME, frame_to_ansi, live_screen, output_size
             self.remove_keyboard_reader(loop)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_call_render.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add termcall/call.py tests/test_call_render.py
@@ -3234,7 +3234,7 @@ git commit -m "feat: add grid render loop and CallSession.run entrypoint"
 - Consumes: everything from Tasks 9–21.
 - Produces: `termcall room create [-d DEVICE] [-w WIDTH]`, `termcall room join CODE [-d DEVICE] [-w WIDTH]`, mapping every condition in design §10's error table to the stated user-facing message.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_cli_room.py
@@ -3335,12 +3335,12 @@ def test_room_create_exits_non_zero_when_call_session_reports_a_fatal_ice_failur
     assert "NAT traversal failed" in result.output
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_cli_room.py -v`
 Expected: FAIL with `Error: No such command 'room'.`
 
-- [ ] **Step 3: Wire the commands into `main.py`**
+- [x] **Step 3: Wire the commands into `main.py`**
 
 ```python
 # main.py — add these imports at the top
@@ -3475,17 +3475,17 @@ async def _run_call(client, room, my_user_id: str, device: int, target_width: in
         cap.release()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_cli_room.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: Run the full unit test suite (integration tests excluded by default)**
+- [x] **Step 5: Run the full unit test suite (integration tests excluded by default)**
 
 Run: `uv run pytest -v`
 Expected: PASS, every test from Tasks 1–22 except `tests/integration/` (skipped) and `tests/test_peers_integration.py` if it's slow — both are fine to include; only genuinely network-dependent integration tests skip.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add main.py tests/test_cli_room.py
@@ -3502,7 +3502,7 @@ git commit -m "feat: wire room create/join commands with design §10 error handl
 **Interfaces:**
 - No new code interfaces — this is documentation plus the final spec-compliance smoke test.
 
-- [ ] **Step 1: Write `README.md`**
+- [x] **Step 1: Write `README.md`**
 
 ```markdown
 # termcall
@@ -3571,17 +3571,17 @@ unit-testable (design §12). Before shipping a change that touches
    reports "no such room, or it has ended.").
 ```
 
-- [ ] **Step 2: Run the full test suite one final time**
+- [x] **Step 2: Run the full test suite one final time**
 
 Run: `uv run pytest -v`
 Expected: PASS, all unit tests from Tasks 1–22 (integration tests under `tests/integration/` skip without `SUPABASE_URL`).
 
-- [ ] **Step 3: Perform the manual verification checklist**
+- [x] **Step 3: Perform the manual verification checklist**
 
 Run through README's "Manual verification" steps 1–9 with 2 terminals at minimum (ideally 3–4 to exercise the mesh grid growth beyond n=2).
 Expected: every step's stated confirmation holds.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md
