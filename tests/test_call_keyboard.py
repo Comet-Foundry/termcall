@@ -52,6 +52,7 @@ async def test_leave_sets_shutdown_closes_peers_and_calls_leave_room():
     assert session._shutdown.is_set()
     session.peers.close_all.assert_awaited_once()
     session.leave_room.assert_awaited_once()
+    assert session.left_room is True
 
 
 async def test_quit_key_schedules_leave():

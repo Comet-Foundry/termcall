@@ -137,6 +137,10 @@ class AudioMixer:
         with self._lock:
             self._buffers.setdefault(peer_id, []).append(chunk)
 
+    def remove(self, peer_id: str) -> None:
+        with self._lock:
+            self._buffers.pop(peer_id, None)
+
     def pull_mixed(self, frames: int) -> np.ndarray:
         with self._lock:
             mix = np.zeros(frames, dtype=np.int32)

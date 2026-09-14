@@ -16,7 +16,7 @@ import numpy as np
 from termcall.grid import compose_grid, grid_dimensions
 from termcall.media import AudioMixer
 from termcall.peers import PeerConnectionManager
-from termcall.render import CURSOR_HOME, QUIT_KEYS, frame_to_ansi, live_screen, output_size
+from termcall.render import CURSOR_HOME, QUIT_KEYS, frame_to_ansi, live_screen, output_size, raw_terminal
 from termcall.rooms import Member
 from termcall.signaling import Signal, am_i_offerer, build_answer_payload, build_offer_payload
 
@@ -53,6 +53,7 @@ class CallSession:
         self.video_disabled = False
         self.failed_peers: set[str] = set()
         self.fatal_error: str | None = None
+        self.left_room = False
         self._shutdown = asyncio.Event()
 
         self.peers = PeerConnectionManager(
@@ -78,7 +79,7 @@ class CallSession:
         """
         if state == "failed":
             self.failed_peers.add(peer_id)
-            if len(self.roster) == 1:
+            if self.roster and self.failed_peers >= set(self.roster):
                 self.fatal_error = (
                     "Could not establish a direct connection with your peer "
                     "(NAT traversal failed, no relay server configured)"
@@ -100,6 +101,7 @@ class CallSession:
         self.roster.pop(member.user_id, None)
         self.video_tiles.pop(member.user_id, None)
         self.failed_peers.discard(member.user_id)
+        self.audio_mixer.remove(member.user_id)
         await self.peers.close(member.user_id)
 
     async def handle_signal(self, signal: Signal) -> None:
@@ -126,6 +128,7 @@ class CallSession:
         self._shutdown.set()
         await self.peers.close_all()
         await self.leave_room()
+        self.left_room = True
 
     def install_keyboard_reader(self, loop: asyncio.AbstractEventLoop) -> None:
         loop.add_reader(sys.stdin.fileno(), self._on_stdin_readable)
@@ -174,7 +177,7 @@ class CallSession:
 
     async def render_loop(self) -> None:
         loop = asyncio.get_event_loop()
-        with live_screen():
+        with live_screen(), raw_terminal():
             while not self._shutdown.is_set():
                 start = time.monotonic()
                 self_frame = await loop.run_in_executor(None, self._capture_self_frame)

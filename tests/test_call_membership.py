@@ -162,3 +162,22 @@ async def test_state_change_to_connected_clears_failed_marker():
     session.failed_peers.add("peer-1")
     session._on_state_change("peer-1", "connected")
     assert "peer-1" not in session.failed_peers
+
+
+async def test_state_change_to_failed_sets_fatal_error_only_once_all_peers_fail():
+    session = _session(my_member_id=1)
+    peer_a = Member(id=2, room_id="r", user_id="peer-a", joined_at="t", left_at=None)
+    peer_b = Member(id=3, room_id="r", user_id="peer-b", joined_at="t", left_at=None)
+    session.roster = {"peer-a": peer_a, "peer-b": peer_b}
+
+    session._on_state_change("peer-a", "failed")
+
+    assert session.fatal_error is None
+
+    session._on_state_change("peer-b", "failed")
+
+    assert session.fatal_error == (
+        "Could not establish a direct connection with your peer "
+        "(NAT traversal failed, no relay server configured)"
+    )
+    assert session._shutdown.is_set()

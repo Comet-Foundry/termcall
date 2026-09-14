@@ -1,6 +1,7 @@
 """termcall CLI entrypoint: a click group wiring auth, room, and preview commands."""
 
 import asyncio
+import threading
 
 import click
 
@@ -130,8 +131,15 @@ async def _room_join_async(code: str, device: int, target_width: int | None) -> 
 
 
 async def _run_call(client, room, my_user_id: str, device: int, target_width: int | None) -> None:
+    session = None
     try:
         cap = media.open_camera(device)
+        camera_lock = threading.Lock()
+
+        def _read_frame():
+            with camera_lock:
+                return cap.read()[1]
+
         try:
             loop = asyncio.get_event_loop()
             mic_queue: asyncio.Queue = asyncio.Queue()
@@ -141,7 +149,7 @@ async def _run_call(client, room, my_user_id: str, device: int, target_width: in
                 roster = await rooms.fetch_active_roster(client, room.id)
                 my_member = next(m for m in roster if m.user_id == my_user_id)
 
-                local_video = LocalVideoTrack(frame_source=lambda: cap.read()[1], fps=20.0)
+                local_video = LocalVideoTrack(frame_source=_read_frame, fps=20.0)
                 local_audio = LocalAudioTrack(queue=mic_queue)
 
                 async def send_signal(recipient_id: str, kind: str, payload: dict) -> None:
@@ -162,7 +170,7 @@ async def _run_call(client, room, my_user_id: str, device: int, target_width: in
                     my_member_id=my_member.id,
                     local_video_track=local_video,
                     local_audio_track=local_audio,
-                    camera_frame_source=lambda: cap.read()[1],
+                    camera_frame_source=_read_frame,
                     send_signal=send_signal,
                     leave_room=do_leave,
                     target_width=target_width,
@@ -203,7 +211,8 @@ async def _run_call(client, room, my_user_id: str, device: int, target_width: in
     except media.DeviceError as err:
         raise click.ClickException(str(err)) from None
     finally:
-        await rooms.leave_room(client, room.id)
+        if session is None or not session.left_room:
+            await rooms.leave_room(client, room.id)
 
 
 if __name__ == "__main__":

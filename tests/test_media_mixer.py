@@ -20,6 +20,15 @@ def test_pull_mixed_returns_silence_when_no_peers_have_data():
     assert (mixed == 0).all()
 
 
+def test_remove_drops_peer_buffer():
+    mixer = AudioMixer()
+    mixer.push("a", np.full(4, 100, dtype=np.int16))
+    mixer.push("b", np.full(4, 200, dtype=np.int16))
+    mixer.remove("a")
+    mixed = mixer.pull_mixed(4)
+    assert (mixed == 200).all()  # only "b"'s chunk remains
+
+
 def test_pull_mixed_consumes_one_chunk_per_call():
     mixer = AudioMixer()
     mixer.push("a", np.full(4, 100, dtype=np.int16))
