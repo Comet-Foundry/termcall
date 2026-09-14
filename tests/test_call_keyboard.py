@@ -62,3 +62,21 @@ async def test_quit_key_schedules_leave():
     session.handle_key("q")
     await asyncio.sleep(0)
     session.leave_room.assert_awaited_once()
+
+
+async def test_run_awaits_pending_leave_task_before_returning():
+    session = _session()
+    session.peers = MagicMock()
+    session.peers.close_all = AsyncMock()
+    session.install_keyboard_reader = MagicMock()
+    session.remove_keyboard_reader = MagicMock()
+
+    async def fake_render_loop():
+        session.handle_key("q")
+
+    session.render_loop = fake_render_loop
+
+    await session.run()
+
+    assert session.left_room is True
+    session.leave_room.assert_awaited_once()

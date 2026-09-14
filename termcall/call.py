@@ -6,6 +6,7 @@ together for `termcall room create`/`termcall room join` (design §6, §8, §9).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
 import time
 from collections.abc import Awaitable, Callable
@@ -55,6 +56,7 @@ class CallSession:
         self.fatal_error: str | None = None
         self.left_room = False
         self._shutdown = asyncio.Event()
+        self._leave_task: asyncio.Task | None = None
 
         self.peers = PeerConnectionManager(
             on_video_frame=self._on_video_frame,
@@ -117,7 +119,7 @@ class CallSession:
 
     def handle_key(self, key: str) -> None:
         if key in QUIT_KEYS:
-            asyncio.ensure_future(self._leave())
+            self._leave_task = asyncio.ensure_future(self._leave())
         elif key == "m":
             self.local_audio_track.muted = not self.local_audio_track.muted
         elif key == "v":
@@ -193,3 +195,6 @@ class CallSession:
             await self.render_loop()
         finally:
             self.remove_keyboard_reader(loop)
+            if self._leave_task is not None:
+                with contextlib.suppress(Exception):
+                    await self._leave_task
