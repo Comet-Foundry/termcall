@@ -90,7 +90,7 @@ async def subscribe_room_members(
     channel.on_postgres_changes(
         "INSERT", schema="public", table="room_members", filter=f"room_id=eq.{room_id}", callback=_on_insert
     )
-    channel.subscribe()
+    await channel.subscribe()
     return backlog, channel
 
 
@@ -115,5 +115,5 @@ async def subscribe_signals(
     channel.on_postgres_changes(
         "INSERT", schema="public", table="signals", filter=f"recipient_id=eq.{my_user_id}", callback=_on_insert
     )
-    channel.subscribe()
+    await channel.subscribe()
     return backlog, channel

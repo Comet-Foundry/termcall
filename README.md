@@ -7,16 +7,14 @@ participants over WebRTC; Supabase is used only for auth and call signaling.
 
 ```bash
 uv sync
-export SUPABASE_URL=https://<project>.supabase.co
-export SUPABASE_ANON_KEY=<anon-key>
+export SUPABASE_URL=https://bmrkludoecyciwpljfve.supabase.co
+export SUPABASE_ANON_KEY=sb_publishable_t7YH_XOTkf3TRIaIOb9TGQ_IJv-PZmD
 ```
 
-Apply the database schema to your Supabase project (or a local instance via
-`supabase start`):
-
-```bash
-supabase db push   # or: supabase db reset, for a local instance
-```
+The schema (`supabase/migrations/`) is already applied to this project. To
+point at a different Supabase project instead (e.g. a local instance via
+`supabase start`), export its URL/anon key and run `supabase link
+--project-ref <ref> && supabase db push` (or `supabase db reset` for local).
 
 ## Usage
 
@@ -39,10 +37,16 @@ to connect; see design §10.
 
 ## Manual verification (full call flow)
 
-Real peer-to-peer audio/video between separate processes isn't meaningfully
-unit-testable (design §12). Before shipping a change that touches
+`termcall/peers.py`/`termcall/signaling.py` reaching a real, negotiated WebRTC
+connection between two OS processes is covered by
+`tests/integration/test_two_process_call.py`, which spawns two real `python`
+processes against a local Supabase instance and swaps synthetic media for
+camera/microphone hardware so it's deterministic (run it with `supabase start`
+and `SUPABASE_URL`/`SUPABASE_ANON_KEY` pointed at `http://127.0.0.1:54321`).
+Actual camera/microphone hardware, the terminal UI, and multi-peer (3-4
+participant) grids are not — before shipping a change that touches
 `termcall/call.py`, `termcall/peers.py`, `termcall/media.py`, or
-`termcall/signaling.py`, run this checklist:
+`termcall/signaling.py`, also run this manual checklist:
 
 1. Run `termcall signup` + `termcall login` for 2–4 separate accounts (in
    separate terminals, or on separate machines).

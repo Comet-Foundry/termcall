@@ -26,7 +26,7 @@ async def test_subscribe_room_members_selects_backlog_before_subscribing():
     )
     fake_channel = MagicMock()
     fake_channel.on_postgres_changes.side_effect = lambda *a, **k: calls.append("registered_callback") or fake_channel
-    fake_channel.subscribe.side_effect = lambda *a, **k: calls.append("subscribed")
+    fake_channel.subscribe = AsyncMock(side_effect=lambda *a, **k: calls.append("subscribed"))
     client.channel.return_value = fake_channel
 
     calls = []
@@ -44,6 +44,7 @@ async def test_subscribe_room_members_selects_backlog_before_subscribing():
 async def test_subscribe_room_members_dispatches_inserts_to_callback():
     client = _room_members_client([])
     fake_channel = MagicMock()
+    fake_channel.subscribe = AsyncMock()
     captured_callback = {}
 
     def on_postgres_changes(*args, **kwargs):
@@ -69,7 +70,9 @@ async def test_subscribe_signals_filters_backlog_by_recipient():
     client = _signals_client(
         [{"id": 1, "room_id": "room-1", "sender_id": "u1", "recipient_id": "u2", "kind": "offer", "payload": {"sdp": "x"}}]
     )
-    client.channel.return_value = MagicMock()
+    fake_channel = MagicMock()
+    fake_channel.subscribe = AsyncMock()
+    client.channel.return_value = fake_channel
 
     async def on_signal(signal):
         pass
