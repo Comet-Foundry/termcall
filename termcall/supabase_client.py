@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 
-import click
 from supabase import AsyncClient, Client, acreate_client, create_client
 from supabase_auth.errors import AuthApiError
 
@@ -18,16 +17,21 @@ from termcall.session import Session, clear_session, load_session, save_session
 SUPABASE_URL_ENV = "SUPABASE_URL"
 SUPABASE_ANON_KEY_ENV = "SUPABASE_ANON_KEY"
 
+# Public anon key for the project's hosted Supabase instance (safe to embed: RLS
+# policies in supabase/migrations/0003_rls_policies.sql gate all data access).
+# Override via SUPABASE_URL/SUPABASE_ANON_KEY env vars, e.g. to point at a local
+# `supabase start` instance for integration tests.
+DEFAULT_SUPABASE_URL = "https://bmrkludoecyciwpljfve.supabase.co"
+DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_t7YH_XOTkf3TRIaIOb9TGQ_IJv-PZmD"
+
 
 class SessionExpiredError(Exception):
     """Raised when there is no stored session, or the refresh token is no longer valid."""
 
 
 def _read_env() -> tuple[str, str]:
-    url = os.environ.get(SUPABASE_URL_ENV)
-    key = os.environ.get(SUPABASE_ANON_KEY_ENV)
-    if not url or not key:
-        raise click.ClickException(f"{SUPABASE_URL_ENV} and {SUPABASE_ANON_KEY_ENV} must be set.")
+    url = os.environ.get(SUPABASE_URL_ENV) or DEFAULT_SUPABASE_URL
+    key = os.environ.get(SUPABASE_ANON_KEY_ENV) or DEFAULT_SUPABASE_ANON_KEY
     return url, key
 
 
