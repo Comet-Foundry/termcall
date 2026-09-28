@@ -54,7 +54,6 @@ def authenticated_sync_client() -> tuple[Client, Session]:
     if session is None:
         raise SessionExpiredError("no stored session")
     client = build_sync_client()
-    client.auth.set_session(session.access_token, session.refresh_token)
     try:
         response = client.auth.refresh_session(session.refresh_token)
     except AuthApiError as err:
@@ -71,7 +70,6 @@ async def authenticated_async_client() -> tuple[AsyncClient, Session]:
     if session is None:
         raise SessionExpiredError("no stored session")
     client = await build_async_client()
-    await client.auth.set_session(session.access_token, session.refresh_token)
     try:
         response = await client.auth.refresh_session(session.refresh_token)
     except AuthApiError as err:
